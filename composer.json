@@ -1,0 +1,40 @@
+{
+    "name": "zxmetro-backend",
+    "description": "",
+    "keywords": [],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Zach Gerstman",
+            "email": "zach.gerstman@gmail.com"
+        }
+    ],
+    "require": {
+        "php": ">=7.3.0",
+        "slim/slim": "^3.12",
+        "slim/php-view": "^2.0",
+        "monolog/monolog": "^1.17"
+    },
+    "autoload": {
+        "classmap": [
+            "src/trains/MetroData.php"
+        ]
+    },
+    "require-dev": {
+        "phpunit/phpunit": ">=4.8 < 6.0"
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+
+        }
+    },
+    "config": {
+        "process-timeout" : 0
+    },
+    "scripts": {
+        "start": "ln -s `pwd`/frontend/public `pwd`/public/frontend 2>/dev/null;  php -S localhost:8080 -t public",
+        "test": "phpunit"
+    }
+
+}
