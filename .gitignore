@@ -1,4 +1,5 @@
 /vendor/
 /logs/*
+/data/lines.json
 !/logs/README.md
 public/frontend
