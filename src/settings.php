@@ -17,8 +17,9 @@ return [
         ],
 
         //metro api settings
-        'metroApi' => [
-            'api_key' => '3bed8edc852b492eae3b4adfe3c8977e'
+        'metroData' => [
+            'api_key' => 'e39b9cf81bb24e4e846527f7072af8de',
+            'use_wmata' => true,
         ]
     ],
 ];

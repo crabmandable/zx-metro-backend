@@ -21,7 +21,7 @@ $container['logger'] = function ($c) {
 // metro data from wmata
 $container['metroData'] = function ($c) {
     $settings = $c->get('settings')['metroData'];
-    $metroData = new MetroData($settings['api_key'], $c['logger']);
+    $metroData = new MetroData($settings['api_key'], $c['logger'], $settings['use_wmata']);
     return $metroData;
 };
 

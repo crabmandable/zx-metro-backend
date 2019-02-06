@@ -4,18 +4,10 @@
  * However, my original intention was to just use this class to access
  * the wmata API
  *
- * Unfortunately when I tried to access the wmata API today (05/02)
- * I found that I was getting status code 401, and an error message
- * about not having a subscription key. Bizzarely this only happens
- * when trying to call the API with php cURL, and it doesn't happen
- * when calling the api externally. As a quick fix I simply saved the
- * json response as a file and am using this instead.
- *
  * All the line and station info is static and unchanging, so I thought
  * it doesn't really make sense to fetch it from the api everytime.
- * However, I also didn't have time to add a database, so this too is
- * saved to a file. (This leads to the rather silly current implementation,
- * where data is read from a file and then saved to a different file).
+ * However, I also didn't have time to add a database, so this is
+ * saved to, and read from a file as json. 
  */
 class MetroData
 {
@@ -25,11 +17,13 @@ class MetroData
 
     const BASE_URL = "https://api.wmata.com";
     const LINES_FILE = __DIR__ . "/../../data/lines.json";
+
     const API_LINES_FILE = __DIR__ . "/../../data/api-lines.json";
     const API_STATION_FILE = __DIR__ . "/../../data/api-station%s.json";
     const API_TRAINS_FILE = __DIR__ . "/../../data/api-trains.json";
 
     private $lines = [];
+    private $useWmata = true;
 
     private function readJsonFile($filePath)
     {
@@ -72,12 +66,14 @@ class MetroData
 
     public function getStation($code)
     {
-       //$apiTrains = $this->callApi(self::METHOD_GET, "/StationPrediction.svc/json/GetPrediction/" . $code);
-       //if (!$apiTrains || !array_key_exists("Trains", $apiTrains)) {
-       //    return [];
-       //}
-
-        $apiTrains = $this->readJsonFile(self::API_TRAINS_FILE);
+        if ($this->useWmata) {
+           $apiTrains = $this->callApi(self::METHOD_GET, "/StationPrediction.svc/json/GetPrediction/" . $code);
+           if (!$apiTrains || !array_key_exists("Trains", $apiTrains)) {
+               return [];
+           }
+        } else {
+            $apiTrains = $this->readJsonFile(self::API_TRAINS_FILE);
+        }
 
         return $apiTrains["Trains"];
     }
@@ -85,27 +81,33 @@ class MetroData
     private function loadLinesFromApi()
     {
 
-        //$apiLines = $this->callApi(self::METHOD_GET, "/Rail.svc/json/jLines");
+        $apiLines = null;
 
-        //Load from file because i keep getting 401 :s
-        $apiLines = $this->readJsonFile(self::API_LINES_FILE);
+        if ($this->useWmata) {
+            $apiLines = $this->callApi(self::METHOD_GET, "/Rail.svc/json/jLines");
+        } else {
+            $apiLines = $this->readJsonFile(self::API_LINES_FILE);
 
-        if (!$apiLines || !array_key_exists("Lines", $apiLines)) {
-            $this->logger->error(sprintf("Unable to get lines: \n%s", json_encode($apiLines)));
-            return false;
+            if (!$apiLines || !array_key_exists("Lines", $apiLines)) {
+                $this->logger->error(sprintf("Unable to get lines: \n%s", json_encode($apiLines)));
+                return false;
+            }
         }
+
 
         foreach ($apiLines["Lines"] as $line)
         {
-            //$apiStations = $this->callApi(
-            //    self::METHOD_GET,
-            //    "/Rail.svc/json/jStations",
-            //    ["LineCode" => $line['LineCode']]
-            //);
+            if ($this->useWmata) {
+                $apiStations = $this->callApi(
+                    self::METHOD_GET,
+                    "/Rail.svc/json/jStations",
+                    ["LineCode" => $line['LineCode']]
+                );
+            } else {
+                $path = sprintf(self::API_STATION_FILE, $line['LineCode']);
+                $apiStations = $this->readJsonFile($path);
+            }
 
-            //Load from file because I keep getting 401
-            $path = sprintf(self::API_STATION_FILE, $line['LineCode']);
-            $apiStations = $this->readJsonFile($path);
 
             $stations = [];
             if ($apiStations && array_key_exists("Stations", $apiStations)) {
@@ -164,10 +166,11 @@ class MetroData
         return $this->lines;
     }
 
-    function __construct($apiKey, $logger)
+    function __construct($apiKey, $logger, $useWmata)
     {
         $this->apiKey = $apiKey;
         $this->logger = $logger;
+        $this->useWmata = $useWmata;
     }
 
     //some copy pasta from: https://www.weichieprojects.com/blog/curl-api-calls-with-php/
@@ -196,6 +199,7 @@ class MetroData
         }
 
         // OPTIONS:
+        $this->logger->info("ApiKey: " . $this->apiKey);
         curl_setopt($curl, CURLOPT_URL, $url);
         curl_setopt($curl, CURLOPT_HTTPHEADER, array(
            sprintf('api_key: %s', $this->apiKey),
